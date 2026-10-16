@@ -7,7 +7,7 @@ const W = 960, H = 1720;
 
 /** Desenha a imagem preenchendo todo o canvas (comportamento "cover"). */
 function drawCover(ctx, img) {
-  const iw = img.width, ih = img.height;
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   const scale = Math.max(W / iw, H / ih);
   const dw = iw * scale, dh = ih * scale;
   ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
@@ -48,7 +48,9 @@ async function ensureFonts(style) {
     `60px "${style.greeting}"`,
     `800 40px "Poppins"`,
   ];
-  await Promise.all(specs.map((s) => document.fonts.load(s).catch(() => {})));
+  // Com limite de 5s: se as fontes demorarem (rede móvel), usa as de reserva em vez de travar.
+  const load = Promise.all(specs.map((s) => document.fonts.load(s).catch(() => {})));
+  await Promise.race([load, new Promise((r) => setTimeout(r, 5000))]);
 }
 
 /**
