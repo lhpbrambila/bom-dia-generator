@@ -31,6 +31,29 @@ function toast(msg, type = "ok") {
   setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 300); }, 3200);
 }
 
+/* ---------- erros nunca ficam silenciosos (importante no celular) ---------- */
+window.addEventListener("error", (e) => toast(`Erro: ${e.message || "falha inesperada"}`, "error"));
+window.addEventListener("unhandledrejection", (e) =>
+  toast(`Erro: ${e.reason?.message || "falha inesperada"}`, "error"));
+
+/** Converte um Blob em imagem. Usa createImageBitmap e, se o navegador falhar, cai para <img>. */
+async function blobToImage(blob) {
+  try {
+    return await createImageBitmap(blob);
+  } catch (err) {
+    console.warn("createImageBitmap falhou, usando <img>:", err);
+    const url = URL.createObjectURL(blob);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      return img;
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+  }
+}
+
 /* ---------- tema ---------- */
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
@@ -143,7 +166,7 @@ async function generateWithPollinations(prompt, onStatus) {
       if (!(res.headers.get("content-type") || "").startsWith("image/")) {
         throw new Error("Resposta inválida do servidor");
       }
-      return await createImageBitmap(await res.blob());
+      return await blobToImage(await res.blob());
     } catch (err) {
       console.warn(`Tentativa ${i + 1} falhou:`, err);
     } finally {
@@ -188,7 +211,7 @@ async function generateWithOpenAI(prompt, key) {
   const item = data.data[0];
   const src = item.b64_json ? `data:image/png;base64,${item.b64_json}` : item.url;
   const blob = await (await fetch(src)).blob();
-  return createImageBitmap(blob);
+  return blobToImage(blob);
 }
 
 /* ---------- geração ---------- */
@@ -200,6 +223,8 @@ async function generate() {
   els.generate.disabled = true;
   els.generate.textContent = "Gerando…";
   els.loader.hidden = false;
+  // No celular a prévia fica abaixo dos botões: leva a tela até ela para o progresso ficar visível.
+  els.preview.scrollIntoView({ behavior: "smooth", block: "nearest" });
   els.loaderText.textContent = "Sorteando mensagem e elementos…";
 
   try {
