@@ -166,8 +166,12 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
 @keyframes toastIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes toastOut { to { opacity: 0; transform: translateY(14px); } }
 
+.btn, .icon-btn { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
 @media (max-width: 760px) {
   .studio { grid-template-columns: 1fr; gap: 22px; }
+  /* No celular os botões ficam ANTES da prévia, sempre visíveis ao abrir a página. */
+  .controls { order: -1; }
   .preview-wrap { max-width: 340px; margin: 0 auto; width: 100%; }
   .controls { max-width: none; }
 }
