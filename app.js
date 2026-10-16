@@ -73,15 +73,27 @@ els.dialog.addEventListener("close", () => {
 
 /* ---------- montagem do prompt ---------- */
 function buildPrompt(day, message, elements, religious, artStyle) {
-  // Prompt curto: URLs muito longas aumentam a chance de falha no servidor gratuito.
-  const list = elements.map((e) => e.en).join(", ");
-  const rel = religious ? `, and ${religious.en}` : "";
-  return (
-    `Beautiful vertical good morning greeting card for ${day.name}, featuring ${list}${rel}. ` +
-    `${artStyle}. Warm, inspiring, affectionate classic Brazilian WhatsApp good morning style, ` +
-    `calm open space at the top and bottom. Mood: ${message} ` +
-    `No text, no letters, no words, no watermark.`
-  );
+  // Prompt em camadas: primeiro plano, plano médio e fundo, mais cenário,
+  // luz, paleta, humor do dia, estilo e qualidade.
+  const d = (e) => ELEMENT_DETAIL[e.pt] || e.en;
+  const dr = (e) => RELIGIOUS_DETAIL[e.pt] || e.en;
+  const [hero, mid, ...rest] = elements;
+
+  return [
+    `Masterpiece vertical 9:16 "good morning" greeting card illustration for ${day.name}, in the beloved Brazilian WhatsApp bom dia style: joyful, emotional, heartwarming and inspiring.`,
+    `FOREGROUND, the main hero of the image: ${d(hero)}.`,
+    `MIDGROUND: ${d(mid)}.`,
+    rest.length ? `BACKGROUND and ambient details: ${rest.map(d).join("; ")}.` : "",
+    religious ? `A spiritual focal element placed gracefully in the upper center of the scene: ${dr(religious)}.` : "",
+    `Setting: ${pick(SCENES)}.`,
+    `Lighting: ${pick(LIGHTING)}.`,
+    `Color palette: ${pick(PALETTES)}, extremely vivid and saturated.`,
+    `Emotional tone: ${DAY_MOODS[day.index]}; the feeling of a warm message like "${message}".`,
+    `Art style: ${artStyle}.`,
+    `Composition: balanced and centered, rule of thirds, strong depth of field with layered foreground, midground and background, soft bokeh, floating glowing sparkles, and calm natural open space in the upper third and the lower third so a text overlay stays readable.`,
+    `Quality: ultra detailed, 8k, sharp focus, intricate textures, professional color grading, award-winning composition.`,
+    `Avoid: any text, letters, words, captions, watermark, logo, signature, frame, border, deformed shapes, blurry or distorted objects, extra limbs.`,
+  ].filter(Boolean).join(" ");
 }
 
 /* ---------- provedores de IA ---------- */
@@ -90,6 +102,7 @@ function buildPrompt(day, message, elements, religious, artStyle) {
    o app espera a vez, tem timeout e tenta de novo com configurações mais leves. */
 const POLLI_GAP_MS = 16000;
 const POLLI_ATTEMPTS = [
+  { model: "flux", w: 864, h: 1536 },
   { model: "flux", w: 768, h: 1376 },
   { model: "flux", w: 576, h: 1024 },
   { model: "turbo", w: 576, h: 1024 },
@@ -115,11 +128,11 @@ async function generateWithPollinations(prompt, onStatus) {
     lastPolliAt = Date.now();
     store.set("bd-last-req", String(lastPolliAt));
     onStatus(i === 0
-      ? "A IA está pintando sua imagem… (10 a 40s)"
+      ? "A IA está pintando sua obra de arte em alta qualidade… (20 a 60s)"
       : `Servidor ocupado, tentando de novo (${i + 1}/${POLLI_ATTEMPTS.length})…`);
 
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 90000);
+    const timer = setTimeout(() => ctrl.abort(), 150000);
     try {
       const seed = Math.floor(Math.random() * 1e9);
       const url =
