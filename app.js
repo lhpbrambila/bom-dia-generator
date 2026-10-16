@@ -73,28 +73,93 @@ els.dialog.addEventListener("close", () => {
 
 /* ---------- montagem do prompt ---------- */
 function buildPrompt(day, message, elements, religious, artStyle) {
+  // Prompt curto: URLs muito longas aumentam a chance de falha no servidor gratuito.
   const list = elements.map((e) => e.en).join(", ");
-  const rel = religious ? `, and also ${religious.en}` : "";
+  const rel = religious ? `, and ${religious.en}` : "";
   return (
-    `A hyper detailed, beautiful "good morning" greeting card background for ${day.name}, ` +
-    `featuring ${list}${rel}. ${artStyle}. Inspirational, warm, affectionate atmosphere, ` +
-    `classic Brazilian WhatsApp good morning message style. ` +
-    `Mood of the message: "${message}". ` +
-    `Vertical composition, leave calm open space at the top and at the bottom for text. ` +
-    `IMPORTANT: absolutely no text, no letters, no words, no watermark in the image.`
+    `Beautiful vertical good morning greeting card for ${day.name}, featuring ${list}${rel}. ` +
+    `${artStyle}. Warm, inspiring, affectionate classic Brazilian WhatsApp good morning style, ` +
+    `calm open space at the top and bottom. Mood: ${message} ` +
+    `No text, no letters, no words, no watermark.`
   );
 }
 
 /* ---------- provedores de IA ---------- */
-/** Flux via Pollinations: gratuito, sem chave. Retorna um ImageBitmap. */
-async function generateWithPollinations(prompt) {
-  const seed = Math.floor(Math.random() * 1e9);
-  const url =
-    `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
-    `?width=960&height=1720&model=flux&nologo=true&enhance=true&seed=${seed}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Pollinations respondeu ${res.status}`);
-  return createImageBitmap(await res.blob());
+/* ---- Pollinations (Flux): gratuito, sem chave ----
+   Limite anônimo: 1 requisição a cada ~15s. Para evitar erros ("Failed to fetch"),
+   o app espera a vez, tem timeout e tenta de novo com configurações mais leves. */
+const POLLI_GAP_MS = 16000;
+const POLLI_ATTEMPTS = [
+  { model: "flux", w: 768, h: 1376 },
+  { model: "flux", w: 576, h: 1024 },
+  { model: "turbo", w: 576, h: 1024 },
+  { model: "turbo", w: 576, h: 1024 },
+];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let lastPolliAt = parseInt(store.get("bd-last-req", "0"), 10) || 0;
+
+/** Segundos que faltam até poder fazer outra requisição gratuita. */
+const polliWaitMs = () => Math.max(0, lastPolliAt + POLLI_GAP_MS - Date.now());
+
+async function waitForSlot(onStatus) {
+  while (polliWaitMs() > 0) {
+    onStatus(`Aguardando a fila gratuita da IA… ${Math.ceil(polliWaitMs() / 1000)}s`);
+    await sleep(500);
+  }
+}
+
+async function generateWithPollinations(prompt, onStatus) {
+  for (let i = 0; i < POLLI_ATTEMPTS.length; i++) {
+    const a = POLLI_ATTEMPTS[i];
+    await waitForSlot(onStatus);
+    lastPolliAt = Date.now();
+    store.set("bd-last-req", String(lastPolliAt));
+    onStatus(i === 0
+      ? "A IA está pintando sua imagem… (10 a 40s)"
+      : `Servidor ocupado, tentando de novo (${i + 1}/${POLLI_ATTEMPTS.length})…`);
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 90000);
+    try {
+      const seed = Math.floor(Math.random() * 1e9);
+      const url =
+        `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
+        `?width=${a.w}&height=${a.h}&model=${a.model}&nologo=true&seed=${seed}&referrer=bom-dia-generator`;
+      const res = await fetch(url, { signal: ctrl.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!(res.headers.get("content-type") || "").startsWith("image/")) {
+        throw new Error("Resposta inválida do servidor");
+      }
+      return await createImageBitmap(await res.blob());
+    } catch (err) {
+      console.warn(`Tentativa ${i + 1} falhou:`, err);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw new Error("O serviço gratuito de imagens está ocupado agora. Aguarde um minuto e tente de novo.");
+}
+
+/** Mostra a contagem regressiva no botão enquanto a fila gratuita não libera. */
+let cooldownTimer = null;
+function startCooldownUI() {
+  clearInterval(cooldownTimer);
+  const label = "Gerar Foto de Bom Dia";
+  const tick = () => {
+    const usingFree = store.get("bd-provider", "pollinations") === "pollinations";
+    const ms = usingFree ? polliWaitMs() : 0;
+    if (busy) return;
+    if (ms > 0) {
+      els.generate.disabled = true;
+      els.generate.textContent = `Aguarde ${Math.ceil(ms / 1000)}s…`;
+    } else {
+      els.generate.disabled = false;
+      els.generate.textContent = label;
+      clearInterval(cooldownTimer);
+    }
+  };
+  tick();
+  cooldownTimer = setInterval(tick, 500);
 }
 
 /** OpenAI Images API (gpt-image-1), tamanho 1024x1536, redimensionado depois no canvas. */
@@ -120,6 +185,7 @@ async function generate() {
   if (busy) return;
   busy = true;
   els.generate.disabled = true;
+  els.generate.textContent = "Gerando…";
   els.loader.hidden = false;
   els.loaderText.textContent = "Sorteando mensagem e elementos…";
 
@@ -133,11 +199,12 @@ async function generate() {
     const prompt = buildPrompt(day, message, elements, religious, pick(ART_STYLES));
 
     // 2) imagem por IA
-    els.loaderText.textContent = "A IA está pintando sua imagem… (pode levar alguns segundos)";
+    const status = (t) => (els.loaderText.textContent = t);
+    status("A IA está pintando sua imagem… (pode levar alguns segundos)");
     const provider = store.get("bd-provider", "pollinations");
     const bg = provider === "openai"
       ? await generateWithOpenAI(prompt, store.get("bd-openai-key", ""))
-      : await generateWithPollinations(prompt);
+      : await generateWithPollinations(prompt, status);
 
     // 3) texto desenhado sobre a imagem
     els.loaderText.textContent = "Escrevendo a mensagem…";
@@ -162,8 +229,8 @@ async function generate() {
     toast(`Não foi possível gerar: ${err.message}`, "error");
   } finally {
     els.loader.hidden = true;
-    els.generate.disabled = false;
     busy = false;
+    startCooldownUI();
   }
 }
 
@@ -185,3 +252,6 @@ function download() {
 
 els.generate.addEventListener("click", generate);
 els.download.addEventListener("click", download);
+
+/* Ao abrir a página, respeita a fila gratuita caso o último pedido tenha sido há pouco. */
+if (polliWaitMs() > 0) startCooldownUI();
