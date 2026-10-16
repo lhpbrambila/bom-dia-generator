@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🌞 Bom Dia Generator</title>
+  <meta name="description" content="Gere imagens únicas de bom dia para compartilhar no WhatsApp." />
+
+  <!-- Fontes usadas na interface e desenhadas na imagem (canvas) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Cormorant+Garamond:ital,wght@1,700&family=Dancing+Script:wght@700&family=Great+Vibes&family=Pacifico&family=Playfair+Display:ital,wght@1,700&family=Poppins:wght@400;600;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-orbs" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="topbar">
+    <div class="counter" title="Imagens geradas neste navegador">
+      <span aria-hidden="true">🖼️</span>
+      <strong id="counter">0</strong> geradas
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="settingsBtn" aria-label="Configurações de IA" title="Configurações de IA">⚙️</button>
+      <button class="icon-btn" id="themeBtn" aria-label="Alternar tema" title="Alternar tema claro/escuro">🌙</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <h1>🌞 Bom Dia Generator</h1>
+      <p>Gere imagens únicas de bom dia para compartilhar no WhatsApp.</p>
+    </section>
+
+    <section class="studio">
+      <!-- Pré-visualização -->
+      <div class="preview-wrap">
+        <div class="preview" id="preview">
+          <div class="placeholder" id="placeholder">
+            <div class="placeholder-emoji">🌻</div>
+            <p>Sua imagem de bom dia vai aparecer aqui</p>
+          </div>
+          <canvas id="canvas" width="960" height="1720" aria-label="Imagem de bom dia gerada" hidden></canvas>
+
+          <div class="loader" id="loader" hidden>
+            <div class="spinner"></div>
+            <p id="loaderText">Criando sua imagem…</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controles -->
+      <div class="controls">
+        <div class="card info-card">
+          <div class="info-row"><span>📅 Hoje</span><strong id="todayLabel">—</strong></div>
+          <div class="info-row"><span>✨ Elementos</span><strong id="elementsLabel">sorteados a cada clique</strong></div>
+        </div>
+
+        <button class="btn btn-primary" id="generateBtn">Gerar Foto de Bom Dia</button>
+        <button class="btn btn-secondary" id="downloadBtn" disabled>Baixar Foto Gerada</button>
+
+        <details class="card prompt-card" id="promptCard" hidden>
+          <summary>Ver prompt usado pela IA</summary>
+          <p id="promptText"></p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">Feito com carinho ☕ — Cada imagem é criada por IA na hora.</footer>
+
+  <!-- Configurações -->
+  <dialog id="settingsDialog">
+    <form method="dialog" class="settings">
+      <h2>Configurações de IA</h2>
+
+      <label>Provedor de imagens
+        <select id="providerSelect">
+          <option value="pollinations">Flux via Pollinations (grátis, sem chave)</option>
+          <option value="openai">OpenAI Images API (gpt-image-1, requer chave)</option>
+        </select>
+      </label>
+
+      <label id="keyField" hidden>Chave da OpenAI
+        <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off" />
+        <small>A chave fica salva só neste navegador (localStorage) e é enviada apenas à OpenAI. Para uso público, coloque um proxy no meio.</small>
+      </label>
+
+      <menu>
+        <button value="cancel" class="btn btn-secondary">Cancelar</button>
+        <button value="save" class="btn btn-primary" id="saveSettings">Salvar</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="data.js"></script>
+  <script src="render.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
