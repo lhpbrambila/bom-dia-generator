@@ -59,16 +59,12 @@
 
         <button class="btn btn-primary" id="generateBtn">Gerar Foto de Bom Dia</button>
         <button class="btn btn-secondary" id="downloadBtn" disabled>Baixar Foto Gerada</button>
-
-        <details class="card prompt-card" id="promptCard" hidden>
-          <summary>Ver prompt usado pela IA</summary>
-          <p id="promptText"></p>
-        </details>
+        <button class="btn btn-whatsapp" id="whatsappBtn" disabled>Enviar no WhatsApp</button>
       </div>
     </section>
   </main>
 
-  <footer class="footer">Feito com carinho ☕ — Cada imagem é criada por IA na hora.</footer>
+  <footer class="footer">Feito com carinho ☕ — Cada imagem é criada por IA na hora. · v4</footer>
 
   <!-- Configurações -->
   <dialog id="settingsDialog">
@@ -84,7 +80,7 @@
 
       <label id="keyField" hidden>Chave da OpenAI
         <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off" />
-        <small>A chave fica salva só neste navegador (localStorage) e é enviada apenas à OpenAI. Para uso público, coloque um proxy no meio.</small>
+        <small>A chave gera a imagem (gpt-image-1) e a frase (gpt-4o-mini). Fica salva só neste navegador (localStorage) e é enviada apenas à OpenAI. Para uso público, coloque um proxy no meio.</small>
       </label>
 
       <menu>
