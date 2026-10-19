@@ -106,7 +106,7 @@ const TEXT_STYLES = [
 const GREETINGS = ["Bom Dia!"];
 
 /* Assinatura desenhada no rodapé de toda imagem. */
-const SIGNATURE = "@lhpbrambila";
+const SIGNATURE = "O Brambila";
 
 /* Ingredientes para a IA escrever a frase do dia (variam a cada geração). */
 const MSG_TONES = [
