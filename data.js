@@ -5,7 +5,8 @@
 
 const DAYS = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 
-/* Mensagens por dia da semana (índice igual a Date.getDay()). */
+/* Mensagens de RESERVA por dia da semana (índice = Date.getDay()).
+   Só são usadas se a IA de texto falhar; normalmente a frase é gerada por IA. */
 const MESSAGES = {
   0: [
     "Bom domingo! Que o Senhor abençoe sua família.",
@@ -103,6 +104,22 @@ const TEXT_STYLES = [
 
 /* Cumprimento grande no topo (varia por horário). */
 const GREETINGS = ["Bom Dia!"];
+
+/* Assinatura desenhada no rodapé de toda imagem. */
+const SIGNATURE = "@lhpbrambila";
+
+/* Ingredientes para a IA escrever a frase do dia (variam a cada geração). */
+const MSG_TONES = [
+  "motivacional e esperançoso",
+  "carinhoso e familiar",
+  "leve, doce e com um toque de humor",
+  "grato e poético",
+  "acolhedor, como um abraço de bom dia",
+];
+const MSG_THEMES = [
+  "gratidão", "fé", "paz", "esperança", "família", "saúde", "alegria", "amor",
+  "recomeço", "café quentinho", "força", "sorriso", "bênçãos", "novas oportunidades",
+];
 
 /* Estilos artísticos para variar o visual. */
 const ART_STYLES = [

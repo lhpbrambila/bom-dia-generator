@@ -1,13 +1,12 @@
 /* ==========================================================
-   app.js — lógica da interface, prompt e chamada às APIs de IA
+   app.js — lógica da interface, prompts e chamadas às APIs de IA
    ========================================================== */
 
 const $ = (id) => document.getElementById(id);
 const els = {
   canvas: $("canvas"), placeholder: $("placeholder"), loader: $("loader"), loaderText: $("loaderText"),
-  preview: $("preview"), generate: $("generateBtn"), download: $("downloadBtn"),
+  preview: $("preview"), generate: $("generateBtn"), download: $("downloadBtn"), whatsapp: $("whatsappBtn"),
   counter: $("counter"), today: $("todayLabel"), theme: $("themeBtn"),
-  promptCard: $("promptCard"), promptText: $("promptText"),
   settingsBtn: $("settingsBtn"), dialog: $("settingsDialog"),
   provider: $("providerSelect"), keyField: $("keyField"), apiKey: $("apiKeyInput"),
 };
@@ -28,7 +27,8 @@ function toast(msg, type = "ok") {
   t.className = "toast " + type;
   t.textContent = msg;
   $("toasts").appendChild(t);
-  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 300); }, 3200);
+  // Erros ficam mais tempo na tela para dar tempo de ler no celular.
+  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 300); }, type === "error" ? 9000 : 3200);
 }
 
 /* ---------- erros nunca ficam silenciosos (importante no celular) ---------- */
@@ -94,8 +94,8 @@ els.dialog.addEventListener("close", () => {
   }
 });
 
-/* ---------- montagem do prompt ---------- */
-function buildPrompt(day, message, elements, religious, artStyle) {
+/* ---------- prompt da IMAGEM ---------- */
+function buildPrompt(day, elements, religious, artStyle) {
   // Prompt em camadas: primeiro plano, plano médio e fundo, mais cenário,
   // luz, paleta, humor do dia, estilo e qualidade.
   const d = (e) => ELEMENT_DETAIL[e.pt] || e.en;
@@ -111,7 +111,7 @@ function buildPrompt(day, message, elements, religious, artStyle) {
     `Setting: ${pick(SCENES)}.`,
     `Lighting: ${pick(LIGHTING)}.`,
     `Color palette: ${pick(PALETTES)}, extremely vivid and saturated.`,
-    `Emotional tone: ${DAY_MOODS[day.index]}; the feeling of a warm message like "${message}".`,
+    `Emotional tone: ${DAY_MOODS[day.index]}.`,
     `Art style: ${artStyle}.`,
     `Composition: balanced and centered, rule of thirds, strong depth of field with layered foreground, midground and background, soft bokeh, floating glowing sparkles, and calm natural open space in the upper third and the lower third so a text overlay stays readable.`,
     `Quality: ultra detailed, 8k, sharp focus, intricate textures, professional color grading, award-winning composition.`,
@@ -119,10 +119,41 @@ function buildPrompt(day, message, elements, religious, artStyle) {
   ].filter(Boolean).join(" ");
 }
 
-/* ---------- provedores de IA ---------- */
-/* ---- Pollinations (Flux): gratuito, sem chave ----
-   Limite anônimo: 1 requisição a cada ~15s. Para evitar erros ("Failed to fetch"),
-   o app espera a vez, tem timeout e tenta de novo com configurações mais leves. */
+/* ---------- prompt da MENSAGEM (texto gerado por IA) ---------- */
+function messageRequest(day, elements, religious) {
+  const tone = religious ? "religioso, falando de Deus, fé ou bênçãos" : pick(MSG_TONES);
+  const themes = pickMany(MSG_THEMES, 2).join(" e ");
+  const seen = elements.map((e) => e.pt).concat(religious ? [religious.pt] : []).join(", ");
+  return {
+    system:
+      "Você escreve mensagens curtas de bom dia no estilo carinhoso das mensagens que tias e tios brasileiros " +
+      "compartilham no WhatsApp. Responda SOMENTE com a frase final, em português do Brasil, em uma única linha, " +
+      "sem aspas, sem emojis, sem hashtags e sem explicações.",
+    user:
+      `Escreva uma frase de bom dia inédita e criativa, com 60 a 120 caracteres, para ${day.name}. ` +
+      `Tom: ${tone}. Temas: ${themes}. Inspire-se nestes elementos da imagem: ${seen}. ` +
+      `Mencione o dia da semana de forma natural.`,
+  };
+}
+
+/** Limpa a resposta da IA: uma linha, sem emojis/aspas/links, tamanho seguro. Retorna null se inválida. */
+function cleanMessage(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  let t = raw.split(/\r?\n/).map((s) => s.trim()).find((s) => s.length >= 15 && !s.endsWith(":")) || "";
+  t = t.replace(/\p{Extended_Pictographic}|️|‍/gu, "")
+       .replace(/#\w+/g, "")
+       .replace(/^["'“”‘’«»\s]+|["'“”‘’«»\s]+$/g, "")
+       .replace(/\s+/g, " ")
+       .trim();
+  if (t.length < 15 || t.length > 180) return null;
+  if (/pollinations|https?:|[{}]/i.test(t)) return null; // lixo/propaganda/JSON de erro
+  if (!/[.!?…]$/.test(t)) t += ".";
+  return t;
+}
+
+/* ---------- Pollinations: fila gratuita compartilhada (imagem e texto) ----------
+   Limite anônimo: 1 requisição a cada ~15s. O app espera a vez, tem timeout
+   e tenta de novo com configurações mais leves para evitar "Failed to fetch". */
 const POLLI_GAP_MS = 16000;
 const POLLI_ATTEMPTS = [
   { model: "flux", w: 864, h: 1536 },
@@ -134,8 +165,13 @@ const POLLI_ATTEMPTS = [
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let lastPolliAt = parseInt(store.get("bd-last-req", "0"), 10) || 0;
 
-/** Segundos que faltam até poder fazer outra requisição gratuita. */
+/** Milissegundos que faltam até poder fazer outra requisição gratuita. */
 const polliWaitMs = () => Math.max(0, lastPolliAt + POLLI_GAP_MS - Date.now());
+
+function markPolliRequest() {
+  lastPolliAt = Date.now();
+  store.set("bd-last-req", String(lastPolliAt));
+}
 
 async function waitForSlot(onStatus) {
   while (polliWaitMs() > 0) {
@@ -144,12 +180,12 @@ async function waitForSlot(onStatus) {
   }
 }
 
+/** Imagem: Flux via Pollinations (gratuito, sem chave). */
 async function generateWithPollinations(prompt, onStatus) {
   for (let i = 0; i < POLLI_ATTEMPTS.length; i++) {
     const a = POLLI_ATTEMPTS[i];
     await waitForSlot(onStatus);
-    lastPolliAt = Date.now();
-    store.set("bd-last-req", String(lastPolliAt));
+    markPolliRequest();
     onStatus(i === 0
       ? "A IA está pintando sua obra de arte em alta qualidade… (20 a 60s)"
       : `Servidor ocupado, tentando de novo (${i + 1}/${POLLI_ATTEMPTS.length})…`);
@@ -176,6 +212,25 @@ async function generateWithPollinations(prompt, onStatus) {
   throw new Error("O serviço gratuito de imagens está ocupado agora. Aguarde um minuto e tente de novo.");
 }
 
+/** Texto: modelo de linguagem do Pollinations (gratuito, sem chave). */
+async function textWithPollinations({ system, user }, onStatus) {
+  await waitForSlot(onStatus);
+  markPolliRequest();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30000);
+  try {
+    const url =
+      `https://text.pollinations.ai/${encodeURIComponent(user)}` +
+      `?model=openai&seed=${Math.floor(Math.random() * 1e9)}&system=${encodeURIComponent(system)}` +
+      `&referrer=bom-dia-generator`;
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Mostra a contagem regressiva no botão enquanto a fila gratuita não libera. */
 let cooldownTimer = null;
 function startCooldownUI() {
@@ -198,7 +253,8 @@ function startCooldownUI() {
   cooldownTimer = setInterval(tick, 500);
 }
 
-/** OpenAI Images API (gpt-image-1), tamanho 1024x1536, redimensionado depois no canvas. */
+/* ---------- OpenAI (opcional, requer chave) ---------- */
+/** Imagem: gpt-image-1, tamanho 1024x1536 (recortado depois no canvas). */
 async function generateWithOpenAI(prompt, key) {
   if (!key) throw new Error("Informe sua chave da OpenAI nas configurações ⚙️");
   const res = await fetch("https://api.openai.com/v1/images/generations", {
@@ -214,8 +270,47 @@ async function generateWithOpenAI(prompt, key) {
   return blobToImage(blob);
 }
 
+/** Texto: gpt-4o-mini (barato e rápido). */
+async function textWithOpenAI({ system, user }, key) {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: "gpt-4o-mini", temperature: 1, max_tokens: 100,
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `OpenAI respondeu ${res.status}`);
+  return data.choices?.[0]?.message?.content || "";
+}
+
+/**
+ * Gera a frase de bom dia por IA. Se a IA de texto falhar, usa uma frase de reserva
+ * (data.js) para nunca perder a imagem já gerada.
+ */
+async function generateMessage(day, elements, religious, provider, onStatus) {
+  const req = messageRequest(day, elements, religious);
+  try {
+    const raw = provider === "openai"
+      ? await textWithOpenAI(req, store.get("bd-openai-key", ""))
+      : await textWithPollinations(req, onStatus);
+    const text = cleanMessage(raw);
+    if (text) return { text, ai: true };
+    console.warn("Resposta de texto inválida:", raw);
+  } catch (err) {
+    console.warn("Mensagem por IA falhou, usando frase de reserva:", err);
+  }
+  return { text: pick(MESSAGES[day.index]), ai: false };
+}
+
 /* ---------- geração ---------- */
 let busy = false;
+let lastBlob = null;   // JPG pronto para baixar/compartilhar
+let lastName = "";
+
+const canvasToJpeg = () =>
+  new Promise((resolve) => els.canvas.toBlob(resolve, "image/jpeg", 0.9));
 
 async function generate() {
   if (busy) return;
@@ -225,37 +320,45 @@ async function generate() {
   els.loader.hidden = false;
   // No celular a prévia fica abaixo dos botões: leva a tela até ela para o progresso ficar visível.
   els.preview.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  els.loaderText.textContent = "Sorteando mensagem e elementos…";
+  const status = (t) => (els.loaderText.textContent = t);
+  status("Sorteando elementos…");
 
   try {
-    // 1) dia + mensagem + elementos sorteados
+    // 1) sorteios
     const day = todayInfo();
-    const message = pick(MESSAGES[day.index]);
     const elements = pickMany(ELEMENTS, 3 + Math.floor(Math.random() * 3));
     const religious = Math.random() < RELIGIOUS_CHANCE ? pick(RELIGIOUS) : null;
     const style = pick(TEXT_STYLES);
-    const prompt = buildPrompt(day, message, elements, religious, pick(ART_STYLES));
+    const prompt = buildPrompt(day, elements, religious, pick(ART_STYLES));
+    const provider = store.get("bd-provider", "pollinations");
 
     // 2) imagem por IA
-    const status = (t) => (els.loaderText.textContent = t);
     status("A IA está pintando sua imagem… (pode levar alguns segundos)");
-    const provider = store.get("bd-provider", "pollinations");
     const bg = provider === "openai"
       ? await generateWithOpenAI(prompt, store.get("bd-openai-key", ""))
       : await generateWithPollinations(prompt, status);
 
-    // 3) texto desenhado sobre a imagem
-    els.loaderText.textContent = "Escrevendo a mensagem…";
+    // 3) frase por IA (depois da imagem, assim a fila gratuita já liberou)
+    status("A IA está escrevendo a mensagem de bom dia…");
+    const msg = await generateMessage(day, elements, religious, provider, status);
+    if (!msg.ai) toast("A IA de texto estava ocupada, usei uma frase de reserva.");
+
+    // 4) texto + assinatura desenhados sobre a imagem
+    status("Finalizando a imagem…");
     await composeImage(els.canvas, bg, {
-      message, dayName: day.name, greeting: pick(GREETINGS), style,
+      message: msg.text, dayName: day.name, greeting: pick(GREETINGS), style, signature: SIGNATURE,
     });
+
+    // 5) JPG pronto (leve) para baixar e compartilhar
+    lastBlob = await canvasToJpeg();
+    if (!lastBlob) throw new Error("Não foi possível preparar a imagem.");
+    lastName = `bom-dia-${new Date().toISOString().slice(0, 10)}-${Date.now().toString(36)}.jpg`;
 
     els.canvas.hidden = false;
     els.placeholder.hidden = true;
     els.preview.classList.add("has-image");
     els.download.disabled = false;
-    els.promptText.textContent = prompt;
-    els.promptCard.hidden = false;
+    els.whatsapp.disabled = false;
     $("elementsLabel").textContent = elements.map((e) => e.pt).concat(religious ? [religious.pt] : []).join(", ");
 
     count += 1;
@@ -264,7 +367,11 @@ async function generate() {
     toast("Imagem gerada com sucesso! 🌸");
   } catch (err) {
     console.error(err);
-    toast(`Não foi possível gerar: ${err.message}`, "error");
+    // O Brave bloqueia pedidos a outros sites com os "Shields"; avisa como resolver.
+    const hint = navigator.brave
+      ? " Dica: toque no ícone do leão (Shields) ao lado do endereço e desative para este site."
+      : "";
+    toast(`Não foi possível gerar: ${err.message}${hint}`, "error");
   } finally {
     els.loader.hidden = true;
     busy = false;
@@ -272,24 +379,48 @@ async function generate() {
   }
 }
 
-/* ---------- download em PNG ---------- */
+/* ---------- download em JPG ---------- */
+function saveBlob(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
 function download() {
-  els.canvas.toBlob((blob) => {
-    if (!blob) return toast("Falha ao exportar a imagem.", "error");
-    const a = document.createElement("a");
-    const stamp = new Date().toISOString().slice(0, 10);
-    a.href = URL.createObjectURL(blob);
-    a.download = `bom-dia-${stamp}-${Date.now().toString(36)}.png`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast("Download iniciado! 📥");
-  }, "image/png");
+  if (!lastBlob) return toast("Gere uma imagem primeiro.", "error");
+  saveBlob(lastBlob, lastName);
+  toast("Download iniciado! 📥");
+}
+
+/* ---------- enviar para o WhatsApp ----------
+   Celular: abre o compartilhamento do sistema já com a foto anexada (escolha o WhatsApp).
+   Computador/sem suporte: baixa a foto e abre o WhatsApp para você anexá-la. */
+async function shareWhatsApp() {
+  if (!lastBlob) return toast("Gere uma imagem primeiro.", "error");
+  const file = new File([lastBlob], lastName, { type: "image/jpeg" });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+      return;
+    } catch (err) {
+      if (err.name === "AbortError") return; // a pessoa cancelou
+      console.warn("Compartilhamento falhou, usando alternativa:", err);
+    }
+  }
+
+  saveBlob(lastBlob, lastName);
+  window.open("https://wa.me/?text=" + encodeURIComponent("Bom dia! 🌞"), "_blank", "noopener");
+  toast("Foto baixada! Anexe-a na conversa do WhatsApp que abriu. 📎");
 }
 
 els.generate.addEventListener("click", generate);
 els.download.addEventListener("click", download);
+els.whatsapp.addEventListener("click", shareWhatsApp);
 
 /* Ao abrir a página, respeita a fila gratuita caso o último pedido tenha sido há pouco. */
 if (polliWaitMs() > 0) startCooldownUI();

@@ -47,6 +47,7 @@ async function ensureFonts(style) {
     `${style.style} 60px "${style.font}"`,
     `60px "${style.greeting}"`,
     `800 40px "Poppins"`,
+    `600 40px "Poppins"`,
   ];
   // Com limite de 5s: se as fontes demorarem (rede móvel), usa as de reserva em vez de travar.
   const load = Promise.all(specs.map((s) => document.fonts.load(s).catch(() => {})));
@@ -110,6 +111,14 @@ async function composeImage(canvas, bg, opts) {
   // Pequeno brilho decorativo ao lado do texto
   drawSparkle(ctx, 110, H - 150 - blockH - 40, 26);
   drawSparkle(ctx, W - 110, H - 100, 20);
+
+  // Assinatura no rodapé
+  if (opts.signature) {
+    ctx.font = `600 38px "Poppins", sans-serif`;
+    ctx.letterSpacing = "2px";
+    strokedText(ctx, opts.signature, W / 2, H - 62, "#ffffff", "rgba(0,0,0,.55)", 7);
+    ctx.letterSpacing = "0px";
+  }
 }
 
 /** Estrela de 4 pontas. */
