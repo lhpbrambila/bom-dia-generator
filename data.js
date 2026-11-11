@@ -1,99 +1,132 @@
 /* ==========================================================
-   data.js — dados: mensagens por dia, elementos visuais,
-   elementos religiosos e estilos de tipografia
+   data.js — dados: dias da semana, paisagens, ingredientes do
+   prompt da imagem, ingredientes do prompt da frase, estilos de texto
    ========================================================== */
 
 const DAYS = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 
-/* Mensagens de RESERVA por dia da semana (índice = Date.getDay()).
-   Só são usadas se a IA de texto falhar; normalmente a frase é gerada por IA. */
+/* Assinatura desenhada no rodapé de toda imagem. */
+const SIGNATURE = "@lhpbrambila";
+
+/* ---------- PAISAGENS ----------
+   Cada item é UMA cena completa e coerente (pt = nome exibido, en = descrição para a IA).
+   Só paisagens naturais: sem pessoas, animais, construções ou objetos soltos. */
+const SCENES = [
+  { pt: "Montanhas ao nascer do sol", en: "a majestic mountain range at sunrise, golden sunlight spilling over the peaks above a sea of low clouds filling the valley" },
+  { pt: "Campo de girassóis", en: "a vast field of blooming sunflowers at sunrise stretching toward rolling green hills under a glowing sky" },
+  { pt: "Praia tropical", en: "a pristine tropical beach at sunrise with turquoise water, gentle waves, white sand and coconut palm trees" },
+  { pt: "Cachoeira na floresta", en: "a beautiful waterfall cascading into a clear emerald pool inside a lush green tropical forest, soft rays of light through the trees" },
+  { pt: "Lago ao amanhecer", en: "a perfectly calm lake at dawn reflecting the mountains and a pink and golden sky like a mirror" },
+  { pt: "Campo de lavanda", en: "rows of blooming purple lavender leading toward the horizon at golden hour, with soft distant hills" },
+  { pt: "Colinas com neblina", en: "rolling green countryside hills covered in soft morning mist, with a winding dirt road and a single large tree" },
+  { pt: "Cafezal ao amanhecer", en: "a Brazilian coffee plantation on rolling hills at sunrise, with morning mist between the green rows of coffee plants" },
+  { pt: "Campo florido", en: "a meadow full of colorful wildflowers in spring, green hills and a bright blue sky with soft white clouds" },
+  { pt: "Chapada ao amanhecer", en: "a dramatic sandstone plateau landscape at sunrise with a river valley below and warm orange light, like Chapada Diamantina in Brazil" },
+  { pt: "Dunas e lagoas", en: "white sand dunes with turquoise freshwater lagoons at sunrise, like Lencois Maranhenses in Brazil" },
+  { pt: "Floresta com raios de sol", en: "a peaceful green forest at dawn with golden sun rays streaming through tall trees and soft mist" },
+  { pt: "Rio sereno", en: "a calm winding river flowing through a lush green valley at sunrise under a soft golden sky" },
+  { pt: "Ipês floridos", en: "blooming golden yellow ipe trees in full flower on a grassy hillside under a clear blue sky" },
+  { pt: "Falésias e mar", en: "coastal cliffs above a calm blue sea at sunrise with golden light on the water and a few soft clouds" },
+  { pt: "Campo de trigo dourado", en: "a golden wheat field swaying under a glowing sunrise sky with soft clouds and gentle hills" },
+  { pt: "Lago alpino", en: "a snow-capped mountain reflected in a clear alpine lake with colorful wildflowers in the foreground" },
+];
+
+/* Ingredientes que variam o visual sem quebrar a coerência da cena. */
+const ATMOSPHERES = [
+  "Soft morning mist hangs gently in the air",
+  "Fluffy white clouds drift across a vivid sky",
+  "Fresh dew sparkles in the foreground",
+  "Warm sun rays break through the clouds",
+  "A clear sky with delicate pink and golden clouds",
+  "A fresh, peaceful and hopeful morning atmosphere",
+];
+const LIGHTING = [
+  "warm golden-hour sunlight with a gentle glow",
+  "soft diffused morning light with subtle sun rays",
+  "radiant sunrise with warm orange and pink highlights",
+  "bright cheerful morning light with a light golden haze",
+];
+const PALETTES = [
+  "golden yellow, sky blue and fresh green",
+  "warm orange, soft pink and deep blue",
+  "emerald green, turquoise and gold",
+  "lavender, rose and soft gold",
+];
+const CAMERAS = [
+  "shot on a full-frame camera with a 24mm wide-angle lens, f/8, deep focus",
+  "shot on a full-frame camera with a 35mm lens, f/11, crisp detail from foreground to horizon",
+  "shot on a full-frame camera with a 16mm ultra-wide lens, f/9, dramatic depth",
+];
+
+/* ---------- FRASE DO DIA (gerada por IA) ---------- */
+/* Tom e tema sorteados (apenas UM de cada, para a frase ficar coerente). */
+const MSG_TONES = [
+  "motivacional e esperançoso",
+  "carinhoso e familiar",
+  "leve e alegre",
+  "grato e sereno",
+  "acolhedor, como um abraço",
+];
+const MSG_THEMES = [
+  "gratidão", "fé em Deus", "paz", "esperança", "família", "saúde", "alegria", "amor",
+  "recomeço", "força", "sorriso", "bênçãos", "coisas boas", "um café quentinho",
+];
+
+/* Frases de RESERVA, curtas e por dia da semana (índice = Date.getDay()).
+   Só são usadas se a IA de texto falhar ou devolver algo fora do padrão. */
 const MESSAGES = {
   0: [
-    "Bom domingo! Que o Senhor abençoe sua família.",
-    "Feliz domingo! Que a paz e o amor tomem conta do seu lar.",
-    "Domingo é dia de descansar o corpo e agradecer a Deus.",
-    "Que seu domingo seja leve, com café coado e abraço apertado.",
-    "Bom domingo! Que Deus renove suas forças para a nova semana.",
+    "Que o seu domingo seja de paz e muito amor.",
+    "Domingo é dia de agradecer e descansar com fé.",
+    "Que Deus abençoe você e sua família neste domingo.",
+    "Um domingo leve, com café quentinho e gratidão.",
+    "Que a paz do Senhor acompanhe o seu domingo.",
   ],
   1: [
-    "Que sua segunda-feira seja cheia de paz, saúde e café quentinho.",
-    "Boa segunda-feira! Comece a semana com fé e o coração leve.",
-    "Segunda-feira chegou! Que Deus abençoe cada passo seu.",
-    "Nova semana, novas bênçãos. Tenha uma linda segunda-feira!",
-    "Que a segunda-feira traga alegria e motivos para sorrir.",
+    "Que sua segunda-feira comece com fé e coração leve.",
+    "Nova semana, novas bênçãos. Boa segunda-feira!",
+    "Que Deus abençoe cada passo seu nesta segunda.",
+    "Comece a semana com gratidão e um sorriso no rosto.",
+    "Que a segunda-feira traga paz, saúde e alegria.",
   ],
   2: [
-    "Feliz terça-feira! Que Deus guie seus passos com carinho.",
-    "Boa terça! Que a gratidão floresça em seu coração.",
-    "Terça-feira abençoada! Fé, força e muita luz para você.",
-    "Que sua terça seja doce como o primeiro gole de café.",
-    "Bom dia! Que a terça-feira traga paz e boas notícias.",
+    "Que a sua terça-feira seja cheia de paz e alegria.",
+    "Terça abençoada, com fé e força para seguir em frente.",
+    "Que Deus guie os seus passos nesta terça-feira.",
+    "Hoje é dia de gratidão. Tenha uma linda terça!",
+    "Que a terça traga boas notícias e muita luz.",
   ],
   3: [
-    "Feliz quarta-feira! Estamos no meio da semana, com Deus no comando.",
-    "Boa quarta! Que a esperança nunca falte no seu caminho.",
-    "Quarta-feira de bênçãos, saúde e muita alegria!",
-    "Que sua quarta-feira seja leve, colorida e cheia de graça.",
-    "Bom dia! Que Deus renove suas energias nesta quarta.",
+    "Que a sua quarta-feira seja leve e abençoada.",
+    "No meio da semana, siga com fé. Deus está com você.",
+    "Quarta-feira de paz, saúde e coisas boas.",
+    "Que a esperança não falte no seu caminho hoje.",
+    "Respire fundo: a quarta-feira vai ser linda.",
   ],
   4: [
-    "Feliz quinta-feira! Que a fé te mantenha de pé.",
-    "Boa quinta! Falta pouco, e Deus está contigo em cada instante.",
-    "Quinta-feira abençoada, com paz no coração e sol no rosto.",
-    "Que sua quinta seja repleta de sorrisos e coisas boas.",
-    "Bom dia! Que o amor de Deus ilumine sua quinta-feira.",
+    "Que a sua quinta-feira seja cheia de bênçãos.",
+    "Falta pouco para o fim de semana. Siga com fé!",
+    "Quinta abençoada, com paz no coração e sol no rosto.",
+    "Que Deus ilumine o seu dia nesta quinta-feira.",
+    "Tenha uma quinta-feira leve e cheia de sorrisos.",
   ],
   5: [
-    "Feliz sexta-feira! Que Deus ilumine seu dia e multiplique suas bênçãos.",
-    "Sextou! Que a paz acompanhe você neste dia lindo.",
-    "Sexta-feira abençoada! Agradeça pela semana e descanse com fé.",
-    "Que sua sexta seja florida, com café quentinho e gratidão.",
-    "Bom dia! Que a sexta-feira traga alegria para você e sua família.",
+    "Feliz sexta-feira! Que Deus abençoe o seu dia.",
+    "Sextou! Que a paz acompanhe você hoje.",
+    "Que a sua sexta-feira seja leve e cheia de alegria.",
+    "Sexta abençoada, com gratidão pela semana que passou.",
+    "Que Deus multiplique as suas bênçãos nesta sexta.",
   ],
   6: [
-    "Feliz sábado! Que seja um dia de paz, descanso e muito amor.",
-    "Sábado abençoado! Aproveite quem você ama.",
-    "Bom sábado! Que Deus encha seu dia de alegria e luz.",
-    "Que seu sábado tenha sol, flores e um café especial.",
-    "Sábado chegou! Respire fundo e agradeça por mais um dia.",
+    "Que o seu sábado seja de paz, descanso e amor.",
+    "Sábado abençoado para você e sua família!",
+    "Que Deus encha o seu sábado de alegria e luz.",
+    "Aproveite o sábado com quem você ama.",
+    "Que o seu sábado tenha sol, calma e um bom café.",
   ],
 };
 
-/* Elementos visuais: rótulo em PT e descrição em inglês (melhor para modelos de imagem). */
-const ELEMENTS = [
-  { pt: "flores", en: "a bouquet of colorful flowers" },
-  { pt: "rosas", en: "blooming red and pink roses with dew drops" },
-  { pt: "girassóis", en: "bright yellow sunflowers" },
-  { pt: "orquídeas", en: "elegant purple and white orchids" },
-  { pt: "borboletas", en: "colorful butterflies in flight" },
-  { pt: "pássaros", en: "cheerful little birds on a branch" },
-  { pt: "beija-flores", en: "a hummingbird sipping nectar from a flower" },
-  { pt: "céu azul", en: "a vivid blue sky with soft white clouds" },
-  { pt: "nascer do sol", en: "a golden sunrise on the horizon" },
-  { pt: "xícara de café", en: "a steaming cup of coffee on a saucer" },
-  { pt: "bule de café", en: "a vintage coffee pot with steam and coffee beans" },
-  { pt: "livros", en: "a stack of old books with a rose on top" },
-  { pt: "jardim", en: "a lush flower garden with a wooden bench" },
-  { pt: "cachoeira", en: "a beautiful waterfall in a green forest" },
-  { pt: "campo florido", en: "a meadow full of wildflowers" },
-  { pt: "velas", en: "softly glowing candles" },
-  { pt: "pombas", en: "white doves flying" },
-  { pt: "corações", en: "floating hearts" },
-  { pt: "brilhos", en: "magical sparkles and bokeh lights" },
-  { pt: "raios de luz", en: "warm rays of sunlight streaming through" },
-];
-
-/* Elementos religiosos: sorteados em apenas ~30% das gerações. */
-const RELIGIOUS = [
-  { pt: "Nossa Senhora Aparecida", en: "Our Lady of Aparecida, serene and glowing" },
-  { pt: "cruz iluminada", en: "a glowing luminous cross with golden light" },
-  { pt: "Bíblia aberta", en: "an open Bible with a ray of light on it" },
-  { pt: "Jesus Cristo", en: "a gentle, reverent depiction of Jesus Christ with soft light" },
-  { pt: "anjos", en: "sweet angels with soft wings" },
-  { pt: "mãos em oração", en: "hands folded in prayer with a soft halo of light" },
-];
-const RELIGIOUS_CHANCE = 0.3;
-
+/* ---------- TIPOGRAFIA ---------- */
 /* Fontes (carregadas do Google Fonts) e paletas de texto. */
 const TEXT_STYLES = [
   { name: "elegante", font: "Playfair Display", style: "italic 700", color: "#ffffff", stroke: "rgba(60,20,0,.75)", greeting: "Great Vibes" },
@@ -102,103 +135,5 @@ const TEXT_STYLES = [
   { name: "religioso", font: "Cormorant Garamond", style: "italic 700", color: "#fffbe6", stroke: "rgba(40,20,60,.8)", greeting: "Cinzel" },
 ];
 
-/* Cumprimento grande no topo (varia por horário). */
+/* Cumprimento grande no topo. */
 const GREETINGS = ["Bom Dia!"];
-
-/* Assinatura desenhada no rodapé de toda imagem. */
-const SIGNATURE = "O Brambila";
-
-/* Ingredientes para a IA escrever a frase do dia (variam a cada geração). */
-const MSG_TONES = [
-  "motivacional e esperançoso",
-  "carinhoso e familiar",
-  "leve, doce e com um toque de humor",
-  "grato e poético",
-  "acolhedor, como um abraço de bom dia",
-];
-const MSG_THEMES = [
-  "gratidão", "fé", "paz", "esperança", "família", "saúde", "alegria", "amor",
-  "recomeço", "café quentinho", "força", "sorriso", "bênçãos", "novas oportunidades",
-];
-
-/* Estilos artísticos para variar o visual. */
-const ART_STYLES = [
-  "hyper realistic macro photography, shot on a full-frame camera with an 85mm f/1.4 lens, creamy bokeh, cinematic color grading",
-  "vibrant digital painting by a master illustrator, lush brushwork, luminous glowing colors, storybook fantasy atmosphere",
-  "dreamy fantasy illustration, magical glowing atmosphere, soft ethereal light, intricate detail, enchanted and romantic",
-  "luminous oil painting with rich impasto texture, golden-hour glow, warm and emotional, classical yet vivid",
-  "ultra detailed 3D rendered scene, Pixar-quality soft global illumination, vivid saturated colors, charming and cozy",
-];
-
-/* ---- Ingredientes extras para prompts mais ricos (em inglês, melhor para o modelo) ---- */
-
-/* Descrições detalhadas por elemento (chave = rótulo em PT). Se faltar, usa o texto curto. */
-const ELEMENT_DETAIL = {
-  "flores": "a lush bouquet of mixed colorful flowers (daisies, tulips, peonies, lilies) with glistening morning dew drops on every petal",
-  "rosas": "velvety red, pink and cream roses in full bloom, with water droplets and a few fallen petals",
-  "girassóis": "tall golden sunflowers facing the sun, with detailed seeds at the center and bright yellow petals",
-  "orquídeas": "graceful cascading orchids in violet, magenta and white, with delicate detailed petals",
-  "borboletas": "several large colorful butterflies (blue morpho, monarch orange) with intricate wing patterns, fluttering around the flowers",
-  "pássaros": "cheerful little songbirds (a bluebird and a yellow canary) perched on a blossoming branch, singing at dawn",
-  "beija-flores": "a shimmering iridescent hummingbird hovering mid-air, wings blurred, drinking nectar from a bright flower",
-  "céu azul": "a vast radiant blue sky with soft fluffy white clouds touched by pink and gold",
-  "nascer do sol": "a glorious golden sunrise over the horizon with warm sunbeams breaking through the clouds",
-  "xícara de café": "a beautiful porcelain cup and saucer of freshly brewed coffee with rising curls of steam, next to a few coffee beans and a small flower",
-  "bule de café": "an elegant vintage enamel coffee pot pouring steaming coffee, with coffee beans and a freshly baked pastry on a rustic wooden table",
-  "livros": "a small stack of vintage leather-bound books with a single rose and reading glasses resting on top",
-  "jardim": "a charming romantic garden with a stone path, flowering bushes, an arbor covered in roses and a cozy wooden bench",
-  "cachoeira": "a majestic waterfall cascading into a crystal clear pool inside a lush tropical forest, mist and rainbow in the air",
-  "campo florido": "an endless meadow of wildflowers in every color rolling toward green hills",
-  "velas": "several softly glowing candles with warm flames, surrounded by petals and golden light",
-  "pombas": "a pair of pure white doves in graceful flight with spread wings, glowing in the sunlight",
-  "corações": "gentle floating hearts made of light and rose petals drifting in the air",
-  "brilhos": "magical golden sparkles, glittering light particles and soft bokeh orbs filling the air",
-  "raios de luz": "dramatic divine rays of warm sunlight streaming diagonally through the scene (crepuscular rays)",
-};
-const RELIGIOUS_DETAIL = {
-  "Nossa Senhora Aparecida": "a serene, reverent image of Our Lady of Aparecida wearing her blue mantle and golden crown, softly glowing with a gentle halo of light",
-  "cruz iluminada": "a radiant luminous cross emitting soft golden light, with rays spreading across the sky",
-  "Bíblia aberta": "an open Holy Bible resting on a wooden table, bathed in a warm ray of light from above, with a rose beside it",
-  "Jesus Cristo": "a gentle, loving and respectful depiction of Jesus Christ with open arms, surrounded by soft divine light",
-  "anjos": "two sweet angels with large feathery white wings, serene faces and glowing halos, floating among the clouds",
-  "mãos em oração": "a pair of hands folded in prayer surrounded by a soft halo of golden light and a few flower petals",
-};
-
-/* Cenários gerais onde os elementos são combinados. */
-const SCENES = [
-  "a sunlit countryside morning with misty rolling hills in the distance",
-  "a dreamy flower garden at the edge of a calm lake reflecting the sky",
-  "a rustic wooden terrace overlooking a blooming valley at dawn",
-  "an enchanted forest clearing with soft golden mist and glowing foliage",
-  "a window sill opening onto a beautiful garden, with lace curtains moving in a gentle breeze",
-  "a mountain meadow at sunrise with a clear stream and distant peaks",
-  "a cozy cottage garden with a picket fence, climbing roses and a winding path",
-];
-
-/* Iluminação. */
-const LIGHTING = [
-  "warm golden-hour backlighting with glowing rim light and lens flare",
-  "soft diffused morning sunlight with volumetric god rays",
-  "radiant sunrise glow with warm orange and pink highlights",
-  "bright cheerful daylight with a gentle golden haze",
-];
-
-/* Paletas de cores vibrantes. */
-const PALETTES = [
-  "golden yellow, sky blue and coral pink",
-  "rich magenta, warm orange and emerald green",
-  "radiant gold, soft lavender and fresh green",
-  "vivid red, sunflower yellow and deep turquoise",
-  "peach, rose pink and baby blue with golden accents",
-];
-
-/* Clima emocional por dia da semana (índice = Date.getDay()). */
-const DAY_MOODS = {
-  0: "peaceful Sunday rest, family warmth, blessing and gratitude",
-  1: "a fresh start, renewed energy, hope and motivation for a new week",
-  2: "gratitude, quiet strength and gentle encouragement",
-  3: "midweek serenity, faith and encouragement to keep going",
-  4: "optimism, perseverance and the joy of almost reaching the weekend",
-  5: "celebration, lightness and gratitude for the week that passed",
-  6: "relaxed, joyful and warm weekend happiness with loved ones",
-};

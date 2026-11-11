@@ -94,59 +94,64 @@ els.dialog.addEventListener("close", () => {
   }
 });
 
-/* ---------- prompt da IMAGEM ---------- */
-function buildPrompt(day, elements, religious, artStyle) {
-  // Prompt em camadas: primeiro plano, plano médio e fundo, mais cenário,
-  // luz, paleta, humor do dia, estilo e qualidade.
-  const d = (e) => ELEMENT_DETAIL[e.pt] || e.en;
-  const dr = (e) => RELIGIOUS_DETAIL[e.pt] || e.en;
-  const [hero, mid, ...rest] = elements;
-
+/* ---------- prompt da IMAGEM (somente paisagens fotográficas) ----------
+   Uma única cena coerente por imagem: evita misturar objetos sem relação entre si. */
+function buildPrompt(scene) {
   return [
-    `Masterpiece vertical 9:16 "good morning" greeting card illustration for ${day.name}, in the beloved Brazilian WhatsApp bom dia style: joyful, emotional, heartwarming and inspiring.`,
-    `FOREGROUND, the main hero of the image: ${d(hero)}.`,
-    `MIDGROUND: ${d(mid)}.`,
-    rest.length ? `BACKGROUND and ambient details: ${rest.map(d).join("; ")}.` : "",
-    religious ? `A spiritual focal element placed gracefully in the upper center of the scene: ${dr(religious)}.` : "",
-    `Setting: ${pick(SCENES)}.`,
+    `Professional landscape photograph: ${scene.en}.`,
+    `${pick(ATMOSPHERES)}.`,
     `Lighting: ${pick(LIGHTING)}.`,
-    `Color palette: ${pick(PALETTES)}, extremely vivid and saturated.`,
-    `Emotional tone: ${DAY_MOODS[day.index]}.`,
-    `Art style: ${artStyle}.`,
-    `Composition: balanced and centered, rule of thirds, strong depth of field with layered foreground, midground and background, soft bokeh, floating glowing sparkles, and calm natural open space in the upper third and the lower third so a text overlay stays readable.`,
-    `Quality: ultra detailed, 8k, sharp focus, intricate textures, professional color grading, award-winning composition.`,
-    `Avoid: any text, letters, words, captions, watermark, logo, signature, frame, border, deformed shapes, blurry or distorted objects, extra limbs.`,
-  ].filter(Boolean).join(" ");
+    `Colors: ${pick(PALETTES)}, vivid but natural.`,
+    `Camera: ${pick(CAMERAS)}.`,
+    `Composition: vertical 9:16 frame, strong depth with an interesting foreground, a clear midground and a distant background, with a calm uncluttered sky in the upper third and a simple soft foreground in the lower third so a text overlay stays readable.`,
+    `Quality: photorealistic, ultra detailed, sharp focus, natural colors, high dynamic range, award-winning nature photography.`,
+    `Uninhabited natural scene, no people, no animals, no buildings, no text, no letters, no watermark, no frame.`,
+  ].join(" ");
 }
 
-/* ---------- prompt da MENSAGEM (texto gerado por IA) ---------- */
-function messageRequest(day, elements, religious) {
-  const tone = religious ? "religioso, falando de Deus, fé ou bênçãos" : pick(MSG_TONES);
-  const themes = pickMany(MSG_THEMES, 2).join(" e ");
-  const seen = elements.map((e) => e.pt).concat(religious ? [religious.pt] : []).join(", ");
+/* ---------- prompt da FRASE (texto gerado por IA) ----------
+   Regras claras + exemplos de estilo + temperatura baixa = frases curtas e com sentido. */
+function messageRequest(day) {
+  const mention = Math.random() < 0.5 ? `Cite ${day.name} de forma natural.` : "Não cite o dia da semana.";
   return {
     system:
-      "Você escreve mensagens curtas de bom dia no estilo carinhoso das mensagens que tias e tios brasileiros " +
-      "compartilham no WhatsApp. Responda SOMENTE com a frase final, em português do Brasil, em uma única linha, " +
-      "sem aspas, sem emojis, sem hashtags e sem explicações.",
-    user:
-      `Escreva uma frase de bom dia inédita e criativa, com 60 a 120 caracteres, para ${day.name}. ` +
-      `Tom: ${tone}. Temas: ${themes}. Inspire-se nestes elementos da imagem: ${seen}. ` +
-      `Mencione o dia da semana de forma natural.`,
+      "Você escreve frases curtas de bom dia, no estilo das mensagens carinhosas que brasileiros compartilham no WhatsApp.\n" +
+      "Regras:\n" +
+      "- Uma única frase completa, com 40 a 90 caracteres.\n" +
+      "- Português do Brasil correto, simples e com sentido claro. Uma só ideia, sem metáforas confusas.\n" +
+      "- Não comece com \"Bom dia\" (o cartão já tem esse título).\n" +
+      "- Sem emojis, aspas, hashtags ou explicações.\n" +
+      "- Responda somente com a frase.\n" +
+      "Exemplos de estilo (não copie, crie uma frase nova):\n" +
+      "Que o seu dia seja leve e cheio de coisas boas.\n" +
+      "Que Deus abençoe cada passo seu hoje.\n" +
+      "Comece o dia com gratidão e o coração tranquilo.\n" +
+      "Que a sua sexta-feira traga paz e alegria.\n" +
+      "Um café quentinho e fé para recomeçar com força.",
+    user: `Escreva 1 frase. Tom: ${pick(MSG_TONES)}. Tema: ${pick(MSG_THEMES)}. ${mention}`,
   };
 }
 
-/** Limpa a resposta da IA: uma linha, sem emojis/aspas/links, tamanho seguro. Retorna null se inválida. */
-function cleanMessage(raw) {
+/** Limpa a resposta da IA e valida. Retorna null se ficar fora do padrão (aí usamos a frase de reserva). */
+function cleanMessage(raw, day) {
   if (!raw || typeof raw !== "string") return null;
   let t = raw.split(/\r?\n/).map((s) => s.trim()).find((s) => s.length >= 15 && !s.endsWith(":")) || "";
   t = t.replace(/\p{Extended_Pictographic}|️|‍/gu, "")
        .replace(/#\w+/g, "")
        .replace(/^["'“”‘’«»\s]+|["'“”‘’«»\s]+$/g, "")
        .replace(/\s+/g, " ")
-       .trim();
-  if (t.length < 15 || t.length > 180) return null;
-  if (/pollinations|https?:|[{}]/i.test(t)) return null; // lixo/propaganda/JSON de erro
+       .trim()
+       .replace(/^bom dia[\s,!.:–-]*/i, "");          // o cartão já diz "Bom Dia!"
+  if (t) t = t[0].toUpperCase() + t.slice(1);
+  if (t.length < 20 || t.length > 110) return null;   // curta e legível
+  if (/pollinations|https?:|[{}]/i.test(t)) return null; // propaganda / JSON de erro
+
+  // Rejeita se citar outro dia da semana (a imagem mostra o dia de hoje).
+  const norm = (x) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const today = norm(day.name.split("-")[0]);
+  const cited = norm(t).match(/\b(segunda|terca|quarta|quinta|sexta|sabado|domingo)\b/g) || [];
+  if (cited.some((d) => d !== today)) return null;
+
   if (!/[.!?…]$/.test(t)) t += ".";
   return t;
 }
@@ -221,7 +226,7 @@ async function textWithPollinations({ system, user }, onStatus) {
   try {
     const url =
       `https://text.pollinations.ai/${encodeURIComponent(user)}` +
-      `?model=openai&seed=${Math.floor(Math.random() * 1e9)}&system=${encodeURIComponent(system)}` +
+      `?model=openai&temperature=0.8&seed=${Math.floor(Math.random() * 1e9)}&system=${encodeURIComponent(system)}` +
       `&referrer=bom-dia-generator`;
     const res = await fetch(url, { signal: ctrl.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -276,7 +281,7 @@ async function textWithOpenAI({ system, user }, key) {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({
-      model: "gpt-4o-mini", temperature: 1, max_tokens: 100,
+      model: "gpt-4o-mini", temperature: 0.8, max_tokens: 60,
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
     }),
   });
@@ -289,13 +294,13 @@ async function textWithOpenAI({ system, user }, key) {
  * Gera a frase de bom dia por IA. Se a IA de texto falhar, usa uma frase de reserva
  * (data.js) para nunca perder a imagem já gerada.
  */
-async function generateMessage(day, elements, religious, provider, onStatus) {
-  const req = messageRequest(day, elements, religious);
+async function generateMessage(day, provider, onStatus) {
+  const req = messageRequest(day);
   try {
     const raw = provider === "openai"
       ? await textWithOpenAI(req, store.get("bd-openai-key", ""))
       : await textWithPollinations(req, onStatus);
-    const text = cleanMessage(raw);
+    const text = cleanMessage(raw, day);
     if (text) return { text, ai: true };
     console.warn("Resposta de texto inválida:", raw);
   } catch (err) {
@@ -308,6 +313,7 @@ async function generateMessage(day, elements, religious, provider, onStatus) {
 let busy = false;
 let lastBlob = null;   // JPG pronto para baixar/compartilhar
 let lastName = "";
+let lastScene = null;  // última paisagem usada
 
 const canvasToJpeg = () =>
   new Promise((resolve) => els.canvas.toBlob(resolve, "image/jpeg", 0.9));
@@ -321,15 +327,16 @@ async function generate() {
   // No celular a prévia fica abaixo dos botões: leva a tela até ela para o progresso ficar visível.
   els.preview.scrollIntoView({ behavior: "smooth", block: "nearest" });
   const status = (t) => (els.loaderText.textContent = t);
-  status("Sorteando elementos…");
+  status("Escolhendo a paisagem…");
 
   try {
     // 1) sorteios
     const day = todayInfo();
-    const elements = pickMany(ELEMENTS, 3 + Math.floor(Math.random() * 3));
-    const religious = Math.random() < RELIGIOUS_CHANCE ? pick(RELIGIOUS) : null;
+    let scene = pick(SCENES);
+    if (scene === lastScene) scene = pick(SCENES);   // evita repetir a mesma paisagem em seguida
+    lastScene = scene;
     const style = pick(TEXT_STYLES);
-    const prompt = buildPrompt(day, elements, religious, pick(ART_STYLES));
+    const prompt = buildPrompt(scene);
     const provider = store.get("bd-provider", "pollinations");
 
     // 2) imagem por IA
@@ -340,7 +347,7 @@ async function generate() {
 
     // 3) frase por IA (depois da imagem, assim a fila gratuita já liberou)
     status("A IA está escrevendo a mensagem de bom dia…");
-    const msg = await generateMessage(day, elements, religious, provider, status);
+    const msg = await generateMessage(day, provider, status);
     if (!msg.ai) toast("A IA de texto estava ocupada, usei uma frase de reserva.");
 
     // 4) texto + assinatura desenhados sobre a imagem
@@ -359,7 +366,7 @@ async function generate() {
     els.preview.classList.add("has-image");
     els.download.disabled = false;
     els.whatsapp.disabled = false;
-    $("elementsLabel").textContent = elements.map((e) => e.pt).concat(religious ? [religious.pt] : []).join(", ");
+    $("elementsLabel").textContent = scene.pt;
 
     count += 1;
     store.set("bd-count", String(count));
