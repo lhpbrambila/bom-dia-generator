@@ -7,7 +7,7 @@ const els = {
   canvas: $("canvas"), placeholder: $("placeholder"), loader: $("loader"), loaderText: $("loaderText"),
   preview: $("preview"), generate: $("generateBtn"), download: $("downloadBtn"), whatsapp: $("whatsappBtn"),
   counter: $("counter"), today: $("todayLabel"), theme: $("themeBtn"),
-  settingsBtn: $("settingsBtn"), dialog: $("settingsDialog"),
+  settingsBtn: $("settingsBtn"), dialog: $("settingsDialog"), periodPicker: $("periodPicker"),
   provider: $("providerSelect"), keyField: $("keyField"), apiKey: $("apiKeyInput"),
 };
 
@@ -75,6 +75,28 @@ function todayInfo() {
 }
 els.today.textContent = todayInfo().name;
 
+/* ---------- período do dia (bom dia / boa tarde / boa noite) ---------- */
+function periodByClock() {
+  const h = new Date().getHours();
+  return h >= 5 && h < 12 ? "manha" : h >= 12 && h < 18 ? "tarde" : "noite";
+}
+let currentPeriod = periodByClock();
+
+function setPeriod(id) {
+  currentPeriod = id;
+  els.periodPicker.querySelectorAll(".period-btn").forEach((b) => {
+    const on = b.dataset.period === id;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-checked", String(on));
+  });
+  // Só troca o texto do botão se ele não estiver ocupado ou em contagem regressiva.
+  if (!els.generate.disabled) els.generate.textContent = PERIODS[id].button;
+}
+els.periodPicker.addEventListener("click", (e) => {
+  const btn = e.target.closest(".period-btn");
+  if (btn) setPeriod(btn.dataset.period);
+});
+
 /* ---------- configurações ---------- */
 els.provider.value = store.get("bd-provider", "pollinations");
 els.apiKey.value = store.get("bd-openai-key", "");
@@ -95,61 +117,68 @@ els.dialog.addEventListener("close", () => {
 });
 
 /* ---------- prompt da IMAGEM (somente paisagens fotográficas) ----------
-   Uma única cena coerente por imagem: evita misturar objetos sem relação entre si. */
-function buildPrompt(scene) {
+   Uma única cena coerente por imagem, com luz e clima do período escolhido. */
+function buildPrompt(scene, period) {
   return [
     `Professional landscape photograph: ${scene.en}.`,
-    `${pick(ATMOSPHERES)}.`,
-    `Lighting: ${pick(LIGHTING)}.`,
-    `Colors: ${pick(PALETTES)}, vivid but natural.`,
-    `Camera: ${pick(CAMERAS)}.`,
+    `${pick(period.atmospheres)}.`,
+    `Lighting: ${pick(period.lighting)}.`,
+    `Colors: ${pick(period.palettes)}, vivid but natural.`,
+    `Camera: ${pick(period.cameras)}.`,
     `Composition: vertical 9:16 frame, strong depth with an interesting foreground, a clear midground and a distant background, with a calm uncluttered sky in the upper third and a simple soft foreground in the lower third so a text overlay stays readable.`,
-    `Quality: photorealistic, ultra detailed, sharp focus, natural colors, high dynamic range, award-winning nature photography.`,
+    `Quality: photorealistic, ultra detailed, sharp focus, natural colors, high dynamic range, low noise, award-winning nature photography.`,
     `Uninhabited natural scene, no people, no animals, no buildings, no text, no letters, no watermark, no frame.`,
   ].join(" ");
 }
 
 /* ---------- prompt da FRASE (texto gerado por IA) ----------
-   Regras claras + exemplos de estilo + temperatura baixa = frases curtas e com sentido. */
-function messageRequest(day) {
+   Regras claras + exemplos do período + temperatura baixa = frases curtas e com sentido. */
+function messageRequest(day, period) {
   const mention = Math.random() < 0.5 ? `Cite ${day.name} de forma natural.` : "Não cite o dia da semana.";
   return {
     system:
-      "Você escreve frases curtas de bom dia, no estilo das mensagens carinhosas que brasileiros compartilham no WhatsApp.\n" +
+      `Você escreve frases curtas de ${period.label.toLowerCase()}, no estilo das mensagens carinhosas que brasileiros compartilham no WhatsApp.\n` +
+      `Este cartão é de ${period.label.toUpperCase()}: a frase deve combinar com ${period.when}.\n` +
       "Regras:\n" +
       "- Uma única frase completa, com 40 a 90 caracteres.\n" +
       "- Português do Brasil correto, simples e com sentido claro. Uma só ideia, sem metáforas confusas.\n" +
-      "- Não comece com \"Bom dia\" (o cartão já tem esse título).\n" +
+      "- Não comece com \"Bom dia\", \"Boa tarde\" ou \"Boa noite\" (o cartão já tem esse título).\n" +
+      "- Não fale de outro período do dia além deste.\n" +
       "- Sem emojis, aspas, hashtags ou explicações.\n" +
       "- Responda somente com a frase.\n" +
       "Exemplos de estilo (não copie, crie uma frase nova):\n" +
-      "Que o seu dia seja leve e cheio de coisas boas.\n" +
-      "Que Deus abençoe cada passo seu hoje.\n" +
-      "Comece o dia com gratidão e o coração tranquilo.\n" +
-      "Que a sua sexta-feira traga paz e alegria.\n" +
-      "Um café quentinho e fé para recomeçar com força.",
-    user: `Escreva 1 frase. Tom: ${pick(MSG_TONES)}. Tema: ${pick(MSG_THEMES)}. ${mention}`,
+      period.examples.join("\n"),
+    user: `Escreva 1 frase. Tom: ${pick(period.tones)}. Tema: ${pick(period.themes)}. ${mention}`,
   };
 }
 
 /** Limpa a resposta da IA e valida. Retorna null se ficar fora do padrão (aí usamos a frase de reserva). */
-function cleanMessage(raw, day) {
+function cleanMessage(raw, day, period) {
   if (!raw || typeof raw !== "string") return null;
+  const norm = (x) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   let t = raw.split(/\r?\n/).map((s) => s.trim()).find((s) => s.length >= 15 && !s.endsWith(":")) || "";
   t = t.replace(/\p{Extended_Pictographic}|️|‍/gu, "")
        .replace(/#\w+/g, "")
        .replace(/^["'“”‘’«»\s]+|["'“”‘’«»\s]+$/g, "")
        .replace(/\s+/g, " ")
        .trim()
-       .replace(/^bom dia[\s,!.:–-]*/i, "");          // o cartão já diz "Bom Dia!"
+       ;
+  // O cartão já tem o cumprimento: remove "Boa noite!" do começo. Se a saudação vier colada na frase
+  // ("Bom dia com muita fé..."), remover deixaria uma frase quebrada, então descarta.
+  if (/^(bom dia|boa tarde|boa noite)\b/i.test(t)) {
+    if (!/^(bom dia|boa tarde|boa noite)\s*[!,.:–-]/i.test(t)) return null;
+    t = t.replace(/^(bom dia|boa tarde|boa noite)[\s,!.:–-]*/i, "");
+  }
   if (t) t = t[0].toUpperCase() + t.slice(1);
-  if (t.length < 20 || t.length > 110) return null;   // curta e legível
-  if (/pollinations|https?:|[{}]/i.test(t)) return null; // propaganda / JSON de erro
+  if (t.length < 20 || t.length > 110) return null;                   // curta e legível
+  if (/pollinations|https?:|[{}]/i.test(t)) return null;              // propaganda / JSON de erro
+
+  const n = norm(t);
+  if (period.avoid.test(n)) return null;                              // fala de outro período do dia
 
   // Rejeita se citar outro dia da semana (a imagem mostra o dia de hoje).
-  const norm = (x) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const today = norm(day.name.split("-")[0]);
-  const cited = norm(t).match(/\b(segunda|terca|quarta|quinta|sexta|sabado|domingo)\b/g) || [];
+  const cited = n.match(/\b(segunda|terca|quarta|quinta|sexta|sabado|domingo)\b/g) || [];
   if (cited.some((d) => d !== today)) return null;
 
   if (!/[.!?…]$/.test(t)) t += ".";
@@ -240,7 +269,6 @@ async function textWithPollinations({ system, user }, onStatus) {
 let cooldownTimer = null;
 function startCooldownUI() {
   clearInterval(cooldownTimer);
-  const label = "Gerar Foto de Bom Dia";
   const tick = () => {
     const usingFree = store.get("bd-provider", "pollinations") === "pollinations";
     const ms = usingFree ? polliWaitMs() : 0;
@@ -250,7 +278,7 @@ function startCooldownUI() {
       els.generate.textContent = `Aguarde ${Math.ceil(ms / 1000)}s…`;
     } else {
       els.generate.disabled = false;
-      els.generate.textContent = label;
+      els.generate.textContent = PERIODS[currentPeriod].button;
       clearInterval(cooldownTimer);
     }
   };
@@ -291,28 +319,29 @@ async function textWithOpenAI({ system, user }, key) {
 }
 
 /**
- * Gera a frase de bom dia por IA. Se a IA de texto falhar, usa uma frase de reserva
+ * Gera a frase do período (bom dia, boa tarde ou boa noite) por IA. Se a IA de texto falhar, usa uma frase de reserva
  * (data.js) para nunca perder a imagem já gerada.
  */
-async function generateMessage(day, provider, onStatus) {
-  const req = messageRequest(day);
+async function generateMessage(day, period, provider, onStatus) {
+  const req = messageRequest(day, period);
   try {
     const raw = provider === "openai"
       ? await textWithOpenAI(req, store.get("bd-openai-key", ""))
       : await textWithPollinations(req, onStatus);
-    const text = cleanMessage(raw, day);
+    const text = cleanMessage(raw, day, period);
     if (text) return { text, ai: true };
     console.warn("Resposta de texto inválida:", raw);
   } catch (err) {
     console.warn("Mensagem por IA falhou, usando frase de reserva:", err);
   }
-  return { text: pick(MESSAGES[day.index]), ai: false };
+  return { text: pick(MESSAGES[period.id][day.index]), ai: false };
 }
 
 /* ---------- geração ---------- */
 let busy = false;
 let lastBlob = null;   // JPG pronto para baixar/compartilhar
 let lastName = "";
+let lastGreeting = "Bom Dia! 🌞";  // texto enviado junto ao abrir o WhatsApp no computador
 let lastScene = null;  // última paisagem usada
 
 const canvasToJpeg = () =>
@@ -332,11 +361,12 @@ async function generate() {
   try {
     // 1) sorteios
     const day = todayInfo();
-    let scene = pick(SCENES);
-    if (scene === lastScene) scene = pick(SCENES);   // evita repetir a mesma paisagem em seguida
+    const period = PERIODS[currentPeriod];   // período escolhido agora
+    let scene = pick(period.scenes);
+    if (scene === lastScene) scene = pick(period.scenes);   // evita repetir a mesma paisagem em seguida
     lastScene = scene;
     const style = pick(TEXT_STYLES);
-    const prompt = buildPrompt(scene);
+    const prompt = buildPrompt(scene, period);
     const provider = store.get("bd-provider", "pollinations");
 
     // 2) imagem por IA
@@ -346,21 +376,23 @@ async function generate() {
       : await generateWithPollinations(prompt, status);
 
     // 3) frase por IA (depois da imagem, assim a fila gratuita já liberou)
-    status("A IA está escrevendo a mensagem de bom dia…");
-    const msg = await generateMessage(day, provider, status);
+    status(`A IA está escrevendo a mensagem de ${period.label.toLowerCase()}…`);
+    const msg = await generateMessage(day, period, provider, status);
     if (!msg.ai) toast("A IA de texto estava ocupada, usei uma frase de reserva.");
 
     // 4) texto + assinatura desenhados sobre a imagem
     status("Finalizando a imagem…");
     await composeImage(els.canvas, bg, {
-      message: msg.text, dayName: day.name, greeting: pick(GREETINGS), style, signature: SIGNATURE,
+      message: msg.text, dayName: day.name, greeting: period.greeting,
+      greetingFill: period.fill, greetingStroke: period.stroke, style, signature: SIGNATURE,
     });
 
     // 5) JPG pronto (leve) para baixar e compartilhar
     lastBlob = await canvasToJpeg();
     if (!lastBlob) throw new Error("Não foi possível preparar a imagem.");
-    lastName = `bom-dia-${new Date().toISOString().slice(0, 10)}-${Date.now().toString(36)}.jpg`;
+    lastName = `${period.file}-${new Date().toISOString().slice(0, 10)}-${Date.now().toString(36)}.jpg`;
 
+    lastGreeting = `${period.greeting} ${period.wa}`;
     els.canvas.hidden = false;
     els.placeholder.hidden = true;
     els.preview.classList.add("has-image");
@@ -421,13 +453,15 @@ async function shareWhatsApp() {
   }
 
   saveBlob(lastBlob, lastName);
-  window.open("https://wa.me/?text=" + encodeURIComponent("Bom dia! 🌞"), "_blank", "noopener");
+  window.open("https://wa.me/?text=" + encodeURIComponent(lastGreeting), "_blank", "noopener");
   toast("Foto baixada! Anexe-a na conversa do WhatsApp que abriu. 📎");
 }
 
 els.generate.addEventListener("click", generate);
 els.download.addEventListener("click", download);
 els.whatsapp.addEventListener("click", shareWhatsApp);
+
+setPeriod(currentPeriod);
 
 /* Ao abrir a página, respeita a fila gratuita caso o último pedido tenha sido há pouco. */
 if (polliWaitMs() > 0) startCooldownUI();

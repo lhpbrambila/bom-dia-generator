@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>🌞 Bom Dia Generator</title>
-  <meta name="description" content="Gere imagens únicas de bom dia para compartilhar no WhatsApp." />
+  <meta name="description" content="Gere imagens únicas de bom dia, boa tarde e boa noite para compartilhar no WhatsApp." />
 
   <!-- Fontes usadas na interface e desenhadas na imagem (canvas) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -30,7 +30,7 @@
   <main class="container">
     <section class="hero">
       <h1>🌞 Bom Dia Generator</h1>
-      <p>Gere imagens únicas de bom dia para compartilhar no WhatsApp.</p>
+      <p>Gere imagens únicas de bom dia, boa tarde e boa noite para compartilhar no WhatsApp.</p>
     </section>
 
     <section class="studio">
@@ -57,6 +57,13 @@
           <div class="info-row"><span>🏞️ Paisagem</span><strong id="elementsLabel">sorteada a cada clique</strong></div>
         </div>
 
+        <!-- Escolha do período: define cumprimento, paisagem e frase -->
+        <div class="period" id="periodPicker" role="radiogroup" aria-label="Período do dia">
+          <button type="button" class="period-btn" role="radio" aria-checked="false" data-period="manha"><span>☀️</span>Bom dia</button>
+          <button type="button" class="period-btn" role="radio" aria-checked="false" data-period="tarde"><span>🌤️</span>Boa tarde</button>
+          <button type="button" class="period-btn" role="radio" aria-checked="false" data-period="noite"><span>🌙</span>Boa noite</button>
+        </div>
+
         <button class="btn btn-primary" id="generateBtn">Gerar Foto de Bom Dia</button>
         <button class="btn btn-secondary" id="downloadBtn" disabled>Baixar Foto Gerada</button>
         <button class="btn btn-whatsapp" id="whatsappBtn" disabled>Enviar no WhatsApp</button>
@@ -64,7 +71,7 @@
     </section>
   </main>
 
-  <footer class="footer">Feito com carinho ☕ — Cada imagem é criada por IA na hora. · v4</footer>
+  <footer class="footer">Feito com carinho ☕ — Cada imagem é criada por IA na hora. · v5</footer>
 
   <!-- Configurações -->
   <dialog id="settingsDialog">

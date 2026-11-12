@@ -86,7 +86,7 @@ async function composeImage(canvas, bg, opts) {
   while (ctx.measureText(greeting).width > W - 140 && size > 70) {
     size -= 6; ctx.font = `${size}px "${style.greeting}"`;
   }
-  strokedText(ctx, greeting, W / 2, 260, "#fff3b0", "rgba(120,40,0,.85)", 14);
+  strokedText(ctx, greeting, W / 2, 260, opts.greetingFill || "#fff3b0", opts.greetingStroke || "rgba(120,40,0,.85)", 14);
 
   // Dia da semana
   ctx.font = `800 54px "Poppins"`;
