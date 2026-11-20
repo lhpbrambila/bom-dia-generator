@@ -343,6 +343,7 @@ let lastBlob = null;   // JPG pronto para baixar/compartilhar
 let lastName = "";
 let lastGreeting = "Bom Dia! 🌞";  // texto enviado junto ao abrir o WhatsApp no computador
 let lastScene = null;  // última paisagem usada
+let lastLayout = null; // último layout de texto usado
 
 const canvasToJpeg = () =>
   new Promise((resolve) => els.canvas.toBlob(resolve, "image/jpeg", 0.9));
@@ -365,6 +366,9 @@ async function generate() {
     let scene = pick(period.scenes);
     if (scene === lastScene) scene = pick(period.scenes);   // evita repetir a mesma paisagem em seguida
     lastScene = scene;
+    let layout;                                              // layout do texto: sorteado, sem repetir o anterior
+    do { layout = pick(LAYOUT_KEYS); } while (layout === lastLayout && LAYOUT_KEYS.length > 1);
+    lastLayout = layout;
     const style = pick(TEXT_STYLES);
     const prompt = buildPrompt(scene, period);
     const provider = store.get("bd-provider", "pollinations");
@@ -384,7 +388,8 @@ async function generate() {
     status("Finalizando a imagem…");
     await composeImage(els.canvas, bg, {
       message: msg.text, dayName: day.name, greeting: period.greeting,
-      greetingFill: period.fill, greetingStroke: period.stroke, style, signature: SIGNATURE,
+      greetingFill: period.fill, greetingStroke: period.stroke, accent: period.accent, ink: period.ink,
+      layout, style, signature: SIGNATURE,
     });
 
     // 5) JPG pronto (leve) para baixar e compartilhar
@@ -399,6 +404,7 @@ async function generate() {
     els.download.disabled = false;
     els.whatsapp.disabled = false;
     $("elementsLabel").textContent = scene.pt;
+    $("layoutLabel").textContent = LAYOUTS[layout].label;
 
     count += 1;
     store.set("bd-count", String(count));

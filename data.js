@@ -19,6 +19,7 @@ const PERIODS = {
     button: "Gerar Foto de Bom Dia",
     when: "a manhã, o começo do dia",
     fill: "#fff3b0", stroke: "rgba(120,40,0,.85)",
+    accent: ["#ff9a1f", "#ff4f81"], ink: "#4a2f12",   // cores dos layouts Fita/Cartão/À esquerda
     // regex em ASCII (aplicado ao texto sem acentos): rejeita frases que falem de outro período
     avoid: /\b(boa tarde|boa noite|noite|tarde|dormir|durma|anoitecer|entardecer)\b/,
     scenes: [
@@ -82,6 +83,7 @@ const PERIODS = {
     button: "Gerar Foto de Boa Tarde",
     when: "a tarde, o meio do dia",
     fill: "#fffbd6", stroke: "rgba(0,60,110,.85)",
+    accent: ["#1fa2ff", "#12c9a0"], ink: "#0f3a5c",
     avoid: /\b(bom dia|boa noite|noite|dormir|durma|amanhecer|manha|madrugada)\b/,
     scenes: [
       { pt: "Vale verde sob o sol", en: "a green countryside valley in bright afternoon sunshine with a vivid blue sky, fluffy white clouds and rolling hills" },
@@ -137,6 +139,7 @@ const PERIODS = {
     button: "Gerar Foto de Boa Noite",
     when: "a noite, o fim do dia e a hora de descansar",
     fill: "#eaf0ff", stroke: "rgba(10,15,70,.9)",
+    accent: ["#4b4fd8", "#9b4fd8"], ink: "#1b2150",
     avoid: /\b(bom dia|boa tarde|amanhecer|nascer do sol|manha)\b/,
     scenes: [
       { pt: "Pôr do sol no mar", en: "a spectacular sunset over a calm sea with a deep orange, pink and purple sky reflected on the water" },
